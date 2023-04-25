@@ -1,6 +1,6 @@
 # boilersuite
 
-Boilersuite is a tool for checking license boilerplate in cert-manager projects which was ported to Golang from a Python script originally written for Kubernetes. That Python script was also used [in cert-manager itself](https://github.com/cert-manager/cert-manager/blob/v1.11.0/hack/verify_boilerplate.py).
+Boilersuite is a tool for checking license boilerplate in cert-manager projects. It was ported to Golang from a Python script originally written for Kubernetes. That Python script was also used [in cert-manager itself](https://github.com/cert-manager/cert-manager/blob/v1.11.0/hack/verify_boilerplate.py).
 
 It uses boilerplate template files to specify how boilerplate should look in a variety of file formats including Makefiles, go files, Dockerfiles and bash scripts.
 
@@ -10,10 +10,13 @@ Since it's written in Go, it's easy to install in projects which already use Go 
 
 All templates are in `boilerplate-templates/` and can be changed as needed. The templates are embedded into the built Go binary to ensure portability.
 
-Templates can either be:
+Templates will be interpreted as:
 
 - "suffix type" (e.g. `boilerplate.go.boilertmpl` will be used for `*.go` files)
 - "prefix type" (e.g. `boilerplate.Dockerfile.boilertmpl` will be used for `Dockerfile` or `Dockerfile.*`)
+
+All templates can be both types, e.g. `boilerplate.go.boilertmpl` will match `main.go` and `go.mod`. There are built-in
+exceptions made for several files, including `go.mod`, `go.sum`, git directories and others.
 
 ## Validation Process
 
