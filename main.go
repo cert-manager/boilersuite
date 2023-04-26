@@ -217,7 +217,7 @@ func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPre
 func isSkippedFile(base string, path string) bool {
 	filename := filepath.Base(path)
 
-	if filename == "go.mod" || filename == "go.sum" || filename == "go.work" {
+	if filename == "go.mod" || filename == "go.sum" || filename == "go.work" || filename == "go.work.sum" {
 		return true
 	}
 
