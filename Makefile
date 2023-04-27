@@ -28,6 +28,9 @@ GOLANGCI_LINT_VERSION := v1.52.2
 
 GOFLAGS := -trimpath
 
+GO_OS := $(shell go env GOOS)
+GO_ARCH := $(shell go env GOARCH)
+
 RELEASE_VERSION := $(shell git describe --tags --match='v*' --abbrev=14)
 GITCOMMIT := $(shell git rev-parse HEAD)
 
@@ -38,8 +41,22 @@ GOLDFLAGS := -w -s \
 .PHONY: build
 build: $(BINDIR)/boilersuite
 
-$(BINDIR)/boilersuite: $(GO_FILES) $(TEMPLATE_FILES) | $(BINDIR)
-	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(GOLDFLAGS)" -o $@ main.go
+$(BINDIR)/boilersuite: $(BINDIR)/boilersuite-$(GO_OS)-$(GO_ARCH)
+	ln -fs $< $@
+
+.PHONY: build-release
+build-release: $(BINDIR)/SHA256SUMS
+
+$(BINDIR)/SHA256SUMS: $(BINDIR)/boilersuite-linux-amd64 $(BINDIR)/boilersuite-darwin-amd64 $(BINDIR)/boilersuite-darwin-arm64
+	cd $(BINDIR) && sha256sum $(notdir $^) > $(notdir $@)
+
+# Expects to be called with a golang OS / Arch combination separated by a dash
+$(BINDIR)/boilersuite-%: $(GO_FILES) $(TEMPLATE_FILES) | $(BINDIR)
+	# the OS is the part before the dash
+	$(eval OS := $(word 1,$(subst -, ,$*)))
+	# the arch is the part after the dash
+	$(eval ARCH := $(word 2,$(subst -, ,$*)))
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(GOLDFLAGS)" -o $@ main.go
 
 .PHONY: test
 test:
