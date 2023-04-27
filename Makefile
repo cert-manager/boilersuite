@@ -26,11 +26,20 @@ TEMPLATE_FILES := $(shell find boilerplate-templates -name "*.boilertmpl")
 
 GOLANGCI_LINT_VERSION := v1.52.2
 
+GOFLAGS := -trimpath
+
+RELEASE_VERSION := $(shell git describe --tags --match='v*' --abbrev=14)
+GITCOMMIT := $(shell git rev-parse HEAD)
+
+GOLDFLAGS := -w -s \
+	-X 'github.com/cert-manager/boilersuite/internal/version.AppVersion=$(RELEASE_VERSION)' \
+    -X 'github.com/cert-manager/boilersuite/internal/version.AppGitCommit=$(GITCOMMIT)'
+
 .PHONY: build
 build: $(BINDIR)/boilersuite
 
 $(BINDIR)/boilersuite: $(GO_FILES) $(TEMPLATE_FILES) | $(BINDIR)
-	CGO_ENABLED=0 go build -o $@ main.go
+	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(GOLDFLAGS)" -o $@ main.go
 
 .PHONY: test
 test:
