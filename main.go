@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/cert-manager/boilersuite/internal/boilersuite"
+	"github.com/cert-manager/boilersuite/internal/version"
 )
 
 const (
@@ -49,12 +50,19 @@ func main() {
 	skipFlag := flag.String("skip", "", "Space-separated list of prefixes for paths which shouldn't be checked. Spaces in prefixes not supported.")
 	authorFlag := flag.String("author", defaultAuthor, fmt.Sprintf("The expected author for files, which will be substituted for the %q marker in templates", boilersuite.AuthorMarkerRegex))
 	verboseFlag := flag.Bool("verbose", false, "If set, prints verbose output")
-	cpuprofile := flag.String("cpuprofile", "", "If set, writes CPU profiling information to the given filename")
+	cpuProfile := flag.String("cpuprofile", "", "If set, writes CPU profiling information to the given filename")
+	printVersion := flag.Bool("version", false, "If set, prints the version and exits")
 
 	flag.Parse()
 
+	if *printVersion {
+		logger.Printf("version: %s", version.AppVersion)
+		logger.Printf(" commit: %s", version.AppGitCommit)
+		os.Exit(0)
+	}
+
 	if flag.NArg() != 1 {
-		logger.Fatalf("usage: %s [--skip \"paths to skip\"] [--author \"example\"] [--verbose] <path-to-dir>", os.Args[0])
+		logger.Fatalf("usage: %s [--version] [--skip \"paths to skip\"] [--author \"example\"] [--verbose] <path-to-dir>", os.Args[0])
 	}
 
 	var skippedDirs []string
@@ -67,8 +75,8 @@ func main() {
 		verboseLogger = log.New(os.Stdout, "[VERBOSE] ", log.LstdFlags)
 	}
 
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
 		if err != nil {
 			logger.Fatal(err)
 		}
