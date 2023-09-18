@@ -17,17 +17,22 @@ limitations under the License.
 package boilersuite
 
 import (
-	"embed"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 )
+
+type Filesystem interface {
+	fs.ReadDirFS
+	fs.ReadFileFS
+}
 
 type TemplateMap map[string]BoilerplateTemplate
 
 // LoadTemplates attempts to read all of the templates under the given embedded filesystem
 // and return a TemplateMap which can be used for fetching templates later.
-func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, error) {
+func LoadTemplates(templateDir Filesystem, expectedAuthor string) (TemplateMap, error) {
 	allEntries, err := templateDir.ReadDir("boilerplate-templates")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read templates: %s", err.Error())
