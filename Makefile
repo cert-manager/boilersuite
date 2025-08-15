@@ -24,7 +24,7 @@ SHELL := /usr/bin/env bash
 GO_FILES := $(shell find . -name "*.go")
 TEMPLATE_FILES := $(shell find boilerplate-templates -name "*.boilertmpl")
 
-GOLANGCI_LINT_VERSION := v1.52.2
+GOLANGCI_LINT_VERSION := v2.4.0
 
 GOFLAGS := -trimpath
 
@@ -81,7 +81,7 @@ $(BINDIR)/golangci-lint: $(BINDIR)/golangci-lint-$(GOLANGCI_LINT_VERSION)/golang
 	ln -fs $< $@
 
 $(BINDIR)/golangci-lint-$(GOLANGCI_LINT_VERSION)/golangci-lint: | $(BINDIR)/golangci-lint-$(GOLANGCI_LINT_VERSION)
-	GOBIN=$(dir $@) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	GOBIN=$(dir $@) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 $(BINDIR) $(BINDIR)/golangci-lint-$(GOLANGCI_LINT_VERSION):
 	@mkdir -p $@

@@ -55,9 +55,10 @@ func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, er
 
 		var normalizationFunc func(string) string
 
-		if target == "go" {
+		switch target {
+		case "go":
 			normalizationFunc = normalizeGoFile
-		} else if target == "sh" || target == "bash" || target == "py" {
+		case "sh", "bash", "py":
 			normalizationFunc = normalizeShebang
 		}
 
