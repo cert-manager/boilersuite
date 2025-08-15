@@ -41,7 +41,7 @@ var (
 )
 
 //go:embed boilerplate-templates/*.boilertmpl
-var boilerplateTemplateDir embed.FS
+var apache2BoilerplateTemplateDir embed.FS
 
 func main() {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
@@ -89,6 +89,11 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	var boilerplateTemplateDir boilersuite.Filesystem = apache2BoilerplateTemplateDir
+	if templateDir, hasTemplateDir := os.LookupEnv("BOILERSUITE_TEMPLATE_DIR"); hasTemplateDir {
+		boilerplateTemplateDir = os.DirFS(templateDir).(boilersuite.Filesystem)
+	}
+
 	templates, err := boilersuite.LoadTemplates(boilerplateTemplateDir, *authorFlag)
 	if err != nil {
 		logger.Fatalf("failed to load templates: %s", err.Error())
@@ -115,7 +120,7 @@ func main() {
 			logger.Fatalf("failed to read %q: %s", targetBase, err.Error())
 		}
 
-		targets = []target{target{
+		targets = []target{{
 			path:     targetBase,
 			contents: string(contents),
 		}}
