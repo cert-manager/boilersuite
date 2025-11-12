@@ -97,29 +97,11 @@ func main() {
 
 	targetBase := flag.Arg(0)
 
-	dir, err := isDir(targetBase)
-	if err != nil {
-		// couldn't check if the base was a dir or not
-		logger.Fatalf("target invalid: %s", err)
-	}
-
 	var targets []target
 
-	if dir {
-		targets, err = getTargets(targetBase, templates, skippedDirs, verboseLogger)
-		if err != nil {
-			logger.Fatalf("failed to list targets in dir %q: %s", targetBase, err.Error())
-		}
-	} else {
-		contents, err := os.ReadFile(targetBase)
-		if err != nil {
-			logger.Fatalf("failed to read %q: %s", targetBase, err.Error())
-		}
-
-		targets = []target{target{
-			path:     targetBase,
-			contents: string(contents),
-		}}
+	targets, err = getTargets(targetBase, templates, skippedDirs, verboseLogger)
+	if err != nil {
+		logger.Fatalf("failed to list targets in dir %q: %s", targetBase, err.Error())
 	}
 
 	if len(targets) == 0 {
@@ -158,15 +140,6 @@ func main() {
 type target struct {
 	path     string
 	contents string
-}
-
-func isDir(path string) (bool, error) {
-	stat, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-
-	return stat.IsDir(), nil
 }
 
 func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPrefixes []string, verboseLogger *log.Logger) ([]target, error) {
