@@ -18,6 +18,7 @@ package boilersuite
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -66,13 +67,18 @@ func NewBoilerplateTemplate(raw string, config BoilerplateTemplateConfiguration)
 	}, nil
 }
 
-// Validate checks the given raw input file against the template
-func (t BoilerplateTemplate) Validate(raw string) error {
-	if SkipFileRegex.MatchString(raw) || GeneratedRegex.MatchString(raw) {
+// Validate checks the given file path against the template
+func (t BoilerplateTemplate) Validate(path string) error {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read: %w", err)
+	}
+
+	if SkipFileRegex.Match(contents) || GeneratedRegex.Match(contents) {
 		return nil
 	}
 
-	normalizedContents, err := t.normalizeAndTrimFile(raw)
+	normalizedContents, err := t.normalizeAndTrimFile(string(contents))
 	if err != nil {
 		return err
 	}

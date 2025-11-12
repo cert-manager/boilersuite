@@ -97,9 +97,7 @@ func main() {
 
 	targetBase := flag.Arg(0)
 
-	var targets []target
-
-	targets, err = getTargets(targetBase, templates, skippedDirs, verboseLogger)
+	targets, err := getTargets(targetBase, templates, skippedDirs, verboseLogger)
 	if err != nil {
 		logger.Fatalf("failed to list targets in dir %q: %s", targetBase, err.Error())
 	}
@@ -110,19 +108,19 @@ func main() {
 
 	validationErrors := make([]error, 0)
 
-	for _, t := range targets {
-		tmpl, ok := templates.TemplateFor(t.path)
+	for _, path := range targets {
+		tmpl, ok := templates.TemplateFor(path)
 		if !ok {
 			panic("failed to get a template for a target which was already processed")
 		}
 
-		err := tmpl.Validate(t.contents)
+		err := tmpl.Validate(path)
 		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("invalid boilerplate in %q: %w", t.path, err))
+			validationErrors = append(validationErrors, fmt.Errorf("invalid boilerplate in %q: %w", path, err))
 			continue
 		}
 
-		verboseLogger.Printf("validated %q successfully", t.path)
+		verboseLogger.Printf("validated %q successfully", path)
 	}
 
 	if len(validationErrors) == 0 {
@@ -137,13 +135,8 @@ func main() {
 	logger.Fatalln("at least one file had errors")
 }
 
-type target struct {
-	path     string
-	contents string
-}
-
-func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPrefixes []string, verboseLogger *log.Logger) ([]target, error) {
-	var targets []target
+func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPrefixes []string, verboseLogger *log.Logger) ([]string, error) {
+	var targets []string
 
 	skipMap := make(map[string]struct{})
 
@@ -194,15 +187,7 @@ func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPre
 			return nil
 		}
 
-		contents, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read %q: %w", path, err)
-		}
-
-		targets = append(targets, target{
-			path:     path,
-			contents: string(contents),
-		})
+		targets = append(targets, path)
 
 		return nil
 	})
