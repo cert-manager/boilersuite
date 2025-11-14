@@ -53,18 +53,18 @@ func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, er
 			return nil, fmt.Errorf("failed to read %q: %s", path, err.Error())
 		}
 
-		var normalizationFunc func(string) string
+		var skipHeaderFunc func(string) int
 
 		switch target {
 		case "go":
-			normalizationFunc = normalizeGoFile
+			skipHeaderFunc = skipHeaderGoFile
 		case "sh", "bash", "py":
-			normalizationFunc = normalizeShebang
+			skipHeaderFunc = skipHeaderShebang
 		}
 
 		out[target], err = NewBoilerplateTemplate(string(contents), BoilerplateTemplateConfiguration{
-			ExpectedAuthor:    expectedAuthor,
-			NormalizationFunc: normalizationFunc,
+			ExpectedAuthor: expectedAuthor,
+			SkipHeaderFunc: skipHeaderFunc,
 		})
 		if err != nil {
 			// all templates should be valid before embedding

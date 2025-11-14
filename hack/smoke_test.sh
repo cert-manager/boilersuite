@@ -16,8 +16,8 @@
 
 set -eu -o pipefail
 
-BOILERSUITE=${1:-}
-FIXTURE_PATH=${2:-}
+BOILERSUITE=${1:-go run main.go}
+FIXTURE_PATH=${2:-fixtures}
 
 if [[ $BOILERSUITE = "" || $FIXTURE_PATH = "" ]]; then
 	echo "usage: $0 <path-to-boilersuite> <path-to-fixtures>"
@@ -48,11 +48,11 @@ checkline() {
 	fi
 }
 
-checkline 'invalid boilerplate in "fixtures/Dockerfile": does not start with expected template type'
-checkline 'invalid boilerplate in "fixtures/Dockerfile.withsuffix": does not start with expected template type'
-checkline 'invalid boilerplate in "fixtures/bashscript_invalid.sh": does not start with expected template type'
-checkline 'invalid boilerplate in "fixtures/shscript_invalid.sh": does not start with expected template type'
-checkline 'invalid boilerplate in "fixtures/tooshort.py": file is shorter than the boilerplate header; cannot have correct boilerplate'
+checkline '"fixtures/Dockerfile": missing boilerplate'
+checkline '"fixtures/Dockerfile.withsuffix": missing boilerplate'
+checkline '"fixtures/bashscript_invalid.sh": missing boilerplate'
+checkline '"fixtures/shscript_invalid.sh": missing boilerplate'
+checkline '"fixtures/tooshort.py": missing boilerplate'
 checkline 'at least one file had errors'
 
 if [[ $anyerrors -ne 0 ]]; then

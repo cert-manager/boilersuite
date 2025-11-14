@@ -47,6 +47,7 @@ func main() {
 	skipFlag := flag.String("skip", "", "Space-separated list of prefixes for paths which shouldn't be checked. Spaces in prefixes not supported.")
 	authorFlag := flag.String("author", defaultAuthor, fmt.Sprintf("The expected author for files, which will be substituted for the %q marker in templates", boilersuite.AuthorMarker))
 	verboseFlag := flag.Bool("verbose", false, "If set, prints verbose output")
+	patchFlag := flag.Bool("patch", false, "If set, prints patch for failed files")
 	cpuProfile := flag.String("cpuprofile", "", "If set, writes CPU profiling information to the given filename")
 	printVersion := flag.Bool("version", false, "If set, prints the version and exits")
 
@@ -59,7 +60,7 @@ func main() {
 	}
 
 	if flag.NArg() != 1 {
-		logger.Fatalf("usage: %s [--version] [--skip \"paths to skip\"] [--author \"example\"] [--verbose] <path-to-dir>", os.Args[0])
+		logger.Fatalf("usage: %s [--version] [--skip \"paths to skip\"] [--author \"example\"] [--verbose] [--patch] <path-to-dir>", os.Args[0])
 	}
 
 	skippedDirs := []string{".git", "_bin", "bin", "node_modules", "vendor", "third_party", "staging"}
@@ -109,9 +110,9 @@ func main() {
 			panic("failed to get a template for a target which was already processed")
 		}
 
-		err := tmpl.Validate(path)
+		err := tmpl.Validate(path, *patchFlag)
 		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("invalid boilerplate in %q: %w", path, err))
+			validationErrors = append(validationErrors, fmt.Errorf("%q: %w", path, err))
 			continue
 		}
 

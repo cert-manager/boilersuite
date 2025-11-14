@@ -30,8 +30,8 @@ var (
 	// AuthorMarker should appear in boilerplate sample files but not in actual files
 	AuthorMarker = "<<AUTHOR>>"
 
-	// DateRegex matches the actual date found inside a file
-	DateRegex = regexp.MustCompile(`Copyright 20\d\d`)
+	// CopyrightRegex matches a copyright string followed by a year
+	CopyrightRegex = regexp.MustCompile(`(?i)Copyright ([12]\d\d\d)`)
 
 	// BuildConstraintsRegex matches golang build constraints
 	BuildConstraintsRegex = regexp.MustCompile(`(?m)^(\/\/(go:build| \+build).*\n)+$`)
