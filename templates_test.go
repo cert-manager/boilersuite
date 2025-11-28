@@ -17,53 +17,22 @@ limitations under the License.
 package main
 
 import (
-	"bytes"
-	"os"
-	"path/filepath"
-	"strings"
+	"fmt"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/cert-manager/boilersuite/internal/boilersuite"
 )
 
-const templateDir = "boilerplate-templates"
-
-func Test_Templates(t *testing.T) {
-	dirEntries, err := os.ReadDir(templateDir)
+func TestLoadEmbededTemplates(t *testing.T) {
+	templates, err := boilersuite.LoadTemplates(boilerplateTemplateDir, "test")
 	if err != nil {
-		t.Fatalf("failed to walk dir %q: %s", templateDir, err)
+		t.Fatalf("failed to load embeded templates: %s", err)
 	}
-
-	for _, entry := range dirEntries {
-		if entry.IsDir() {
-			continue
-		}
-
-		path := filepath.Join(templateDir, entry.Name())
-
-		if !strings.HasPrefix(entry.Name(), "boilerplate") {
-			t.Errorf("missing 'boilerplate' prefix on template file %q", path)
-		}
-
-		contents, err := os.ReadFile(path)
-		if err != nil {
-			t.Errorf("failed to read %q: %s", path, err)
-			continue
-		}
-
-		if !strings.Contains(string(contents), boilersuite.YearMarker) {
-			t.Errorf("couldn't find marker %s in %q", boilersuite.YearMarker, path)
-			continue
-		}
-
-		if !strings.Contains(string(contents), boilersuite.AuthorMarker) {
-			t.Errorf("couldn't find marker %s in %q", boilersuite.AuthorMarker, path)
-			continue
-		}
-
-		if bytes.Contains(contents, []byte("\r")) {
-			t.Errorf("template %q has Windows style line endings. Unix style are required", path)
-			continue
-		}
+	expect := "[Containerfile Dockerfile Makefile bash go mk py sh]"
+	loaded := fmt.Sprintf("%s", slices.Sorted(maps.Keys(templates)))
+	if loaded != expect {
+		t.Fatalf("unexpected template list:\nwant %s\ngot  %s", expect, loaded)
 	}
 }

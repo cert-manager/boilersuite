@@ -60,7 +60,7 @@ $(BINDIR)/boilersuite-%: $(GO_FILES) $(TEMPLATE_FILES) | $(BINDIR)
 
 .PHONY: test
 test:
-	go test ./...
+	go test . ./internal/...
 
 .PHONY: smoke-test
 smoke-test: $(BINDIR)/boilersuite

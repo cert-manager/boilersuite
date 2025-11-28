@@ -42,9 +42,7 @@ func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, er
 	for _, entry := range allEntries {
 		name := entry.Name()
 		path := filepath.Join("boilerplate-templates", name)
-
 		trimmedName := strings.TrimSuffix(name, ".boilertmpl")
-
 		target := strings.TrimPrefix(filepath.Ext(trimmedName), ".")
 
 		contents, err := templateDir.ReadFile(path)
@@ -53,19 +51,7 @@ func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, er
 			return nil, fmt.Errorf("failed to read %q: %s", path, err.Error())
 		}
 
-		var skipHeaderFunc func(string) int
-
-		switch target {
-		case "go":
-			skipHeaderFunc = skipHeaderGoFile
-		case "sh", "bash", "py":
-			skipHeaderFunc = skipHeaderShebang
-		}
-
-		out[target], err = NewBoilerplateTemplate(string(contents), BoilerplateTemplateConfiguration{
-			ExpectedAuthor: expectedAuthor,
-			SkipHeaderFunc: skipHeaderFunc,
-		})
+		out[target], err = NewBoilerplateTemplate(string(contents), target, expectedAuthor)
 		if err != nil {
 			// all templates should be valid before embedding
 			return nil, fmt.Errorf("invalid template %q: %s", path, err.Error())

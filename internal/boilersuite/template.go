@@ -28,26 +28,17 @@ import (
 	"github.com/hexops/gotextdiff/span"
 )
 
-// BoilerplateTemplate takes a raw template as input and pre-processes it so it's ready for use
-// during validation.
+// Pre-processed template ready for use during validation.
 type BoilerplateTemplate struct {
-	text           string
+	// Text of the template, sanity-checked and with the <<AUTHOR>> marker replaced
+	text string
+	// Optional parsing step, for example, to skip go build constraints
 	skipHeaderFunc func(string) int
 }
 
-// BoilerplateTemplateConfiguration holds configuration values which can be used for pre-processing a template
-type BoilerplateTemplateConfiguration struct {
-	// ExpectedAuthor contains the name of the author expected to be found in
-	// the template. Related to the <<AUTHOR>> marker.
-	ExpectedAuthor string
-
-	// SkipHeaderFunc is an optional parsing step for files matched by this template.
-	// For example, in go files the boilerplate should go after build constraints.
-	SkipHeaderFunc func(string) int
-}
-
-// NewBoilerplateTemplate creates a new boilerplate template using the given raw template and configuration
-func NewBoilerplateTemplate(raw string, config BoilerplateTemplateConfiguration) (BoilerplateTemplate, error) {
+// Create a new boilerplate template using the given content and configuration
+func NewBoilerplateTemplate(raw string, ext string, expectedAuthor string) (BoilerplateTemplate, error) {
+	// Sanity-check
 	if !strings.Contains(raw, CopyrightMarker) {
 		return BoilerplateTemplate{}, fmt.Errorf("couldn't find replacement marker %q", CopyrightMarker)
 	}
@@ -56,12 +47,26 @@ func NewBoilerplateTemplate(raw string, config BoilerplateTemplateConfiguration)
 		return BoilerplateTemplate{}, fmt.Errorf("couldn't find replacement marker %q", AuthorMarker)
 	}
 
-	text := strings.ReplaceAll(raw, AuthorMarker, config.ExpectedAuthor)
+	if strings.Contains(raw, "\r") {
+		return BoilerplateTemplate{}, fmt.Errorf("has Windows style line endings. Unix style are required")
+	}
+
+	// Edit content
+	text := strings.ReplaceAll(raw, AuthorMarker, expectedAuthor)
 	text = strings.TrimSpace(text) + "\n"
+
+	// Find skipHeaderFunc
+	var skipHeaderFunc func(string) int
+	switch ext {
+	case "go":
+		skipHeaderFunc = skipHeaderGoFile
+	case "sh", "bash", "py":
+		skipHeaderFunc = skipHeaderShebang
+	}
 
 	return BoilerplateTemplate{
 		text:           text,
-		skipHeaderFunc: config.SkipHeaderFunc,
+		skipHeaderFunc: skipHeaderFunc,
 	}, nil
 }
 

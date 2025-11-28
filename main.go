@@ -217,7 +217,6 @@ func isSkippedFile(base string, path string) bool {
 	}
 
 	return false
-
 }
 
 func isSkippedDir(path string, allSkips map[string]struct{}) bool {
