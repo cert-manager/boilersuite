@@ -29,7 +29,7 @@ import (
 )
 
 // Pre-processed template ready for use during validation.
-type BoilerplateTemplate struct {
+type Template struct {
 	// Text of the template, sanity-checked and with the <<AUTHOR>> marker replaced
 	text string
 	// Optional parsing step, for example, to skip go build constraints
@@ -37,22 +37,22 @@ type BoilerplateTemplate struct {
 }
 
 // Create a new boilerplate template using the given content and configuration
-func NewBoilerplateTemplate(raw string, ext string, expectedAuthor string) (BoilerplateTemplate, error) {
+func NewTemplate(content string, ext string, expectedAuthor string) (Template, error) {
 	// Sanity-check
-	if !strings.Contains(raw, CopyrightMarker) {
-		return BoilerplateTemplate{}, fmt.Errorf("couldn't find replacement marker %q", CopyrightMarker)
+	if !strings.Contains(content, CopyrightMarker) {
+		return Template{}, fmt.Errorf("couldn't find replacement marker %q", CopyrightMarker)
 	}
 
-	if !strings.Contains(raw, AuthorMarker) {
-		return BoilerplateTemplate{}, fmt.Errorf("couldn't find replacement marker %q", AuthorMarker)
+	if !strings.Contains(content, AuthorMarker) {
+		return Template{}, fmt.Errorf("couldn't find replacement marker %q", AuthorMarker)
 	}
 
-	if strings.Contains(raw, "\r") {
-		return BoilerplateTemplate{}, fmt.Errorf("has Windows style line endings. Unix style are required")
+	if strings.Contains(content, "\r") {
+		return Template{}, fmt.Errorf("has Windows style line endings. Unix style are required")
 	}
 
 	// Edit content
-	text := strings.ReplaceAll(raw, AuthorMarker, expectedAuthor)
+	text := strings.ReplaceAll(content, AuthorMarker, expectedAuthor)
 	text = strings.TrimSpace(text) + "\n"
 
 	// Find skipHeaderFunc
@@ -64,14 +64,14 @@ func NewBoilerplateTemplate(raw string, ext string, expectedAuthor string) (Boil
 		skipHeaderFunc = skipHeaderShebang
 	}
 
-	return BoilerplateTemplate{
+	return Template{
 		text:           text,
 		skipHeaderFunc: skipHeaderFunc,
 	}, nil
 }
 
 // Validate checks the given file path against the template
-func (t BoilerplateTemplate) Validate(path string, patch bool) error {
+func (t Template) Validate(path string, patch bool) error {
 	// Read file and check
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -114,7 +114,7 @@ func (t BoilerplateTemplate) Validate(path string, patch bool) error {
 // Split the input into header/boilerplate/footer parts, and finds the copyright year.
 // The boilerplate part may be empty, and in this case the copyright year is generated.
 // The header might be a shebang, golang build constraints, etc (see LoadTemplates).
-func (t BoilerplateTemplate) analyzeFile(raw []byte) (head string, boil string, foot string, year string) {
+func (t Template) analyzeFile(raw []byte) (head string, boil string, foot string, year string) {
 	// Remove any windows-style line feeds in the raw input
 	content := strings.ReplaceAll(string(raw), "\r", "")
 
