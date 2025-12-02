@@ -77,8 +77,11 @@ func (t Template) Validate(path string, patch bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to read: %w", err)
 	}
+	return t.validateContent(string(content), path, patch)
+}
 
-	if SkipFileRegex.Match(content) || GeneratedRegex.Match(content) {
+func (t Template) validateContent(content string, path string, patch bool) error {
+	if SkipFileRegex.MatchString(content) || GeneratedRegex.MatchString(content) {
 		return nil
 	}
 
@@ -86,8 +89,9 @@ func (t Template) Validate(path string, patch bool) error {
 	head, boilOrig, foot, year := t.analyzeFile(content)
 	have := head + boilOrig + foot
 	boilExpect := strings.ReplaceAll(t.text, YearMarker, year)
+	head = strings.TrimSpace(head)
 	if head != "" {
-		head = strings.TrimSpace(head) + "\n\n"
+		head += "\n\n"
 	}
 	if foot != "" {
 		foot = "\n" + strings.TrimLeftFunc(foot, unicode.IsSpace)
@@ -114,14 +118,13 @@ func (t Template) Validate(path string, patch bool) error {
 // Split the input into header/boilerplate/footer parts, and finds the copyright year.
 // The boilerplate part may be empty, and in this case the copyright year is generated.
 // The header might be a shebang, golang build constraints, etc (see LoadTemplates).
-func (t Template) analyzeFile(raw []byte) (head string, boil string, foot string, year string) {
+func (t Template) analyzeFile(content string) (head string, boil string, foot string, year string) {
 	// Remove any windows-style line feeds in the raw input
-	content := strings.ReplaceAll(string(raw), "\r", "")
+	content = strings.ReplaceAll(content, "\r", "")
 
 	// Find location/year of existing boilerplate, or generate one
 	start, stop, year := findExistingBoilerplate(content)
 	if start == -1 {
-		year = fmt.Sprint(time.Now().Year())
 		if t.skipHeaderFunc != nil {
 			start = t.skipHeaderFunc(content)
 			stop = start
@@ -129,6 +132,11 @@ func (t Template) analyzeFile(raw []byte) (head string, boil string, foot string
 			start = 0
 			stop = 0
 		}
+	} else if t.skipHeaderFunc != nil {
+		start += t.skipHeaderFunc(content[start:stop])
+	}
+	if year == "" {
+		year = fmt.Sprint(time.Now().Year())
 	}
 
 	return content[:start], content[start:stop], content[stop:], year
@@ -157,6 +165,14 @@ func findExistingBoilerplate(content string) (start int, stop int, year string) 
 			if strings.HasPrefix(l, "/*") {
 				inblock = "/*"
 				start = pos
+				if strings.HasSuffix(l, "*/") {
+					if isBoiler {
+						return start, pos + len(line), year
+					}
+					inblock = ""
+					start = -1
+					isBoiler = false
+				}
 			} else if strings.HasPrefix(l, "//") {
 				inblock = "//"
 				start = pos

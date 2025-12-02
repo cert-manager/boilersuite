@@ -30,11 +30,11 @@ var (
 	// AuthorMarker should appear in boilerplate sample files but not in actual files
 	AuthorMarker = "<<AUTHOR>>"
 
-	// CopyrightRegex matches a copyright string followed by a year
-	CopyrightRegex = regexp.MustCompile(`(?i)Copyright ([12]\d\d\d)`)
+	// CopyrightRegex matches a copyright string optionally followed by a year
+	CopyrightRegex = regexp.MustCompile(`(?i)Copyright ([12]\d\d\d)?`)
 
 	// BuildConstraintsRegex matches golang build constraints
-	BuildConstraintsRegex = regexp.MustCompile(`(?m)^(\/\/(go:build| \+build).*\n)+$`)
+	BuildConstraintsRegex = regexp.MustCompile(`(?m)^(\/\/(go:build| \+build).*\n)+`)
 
 	// ShebangRegex matches shebangs in scripts; most shebangs should be on the first line
 	// but we use a multiline here to be safe
