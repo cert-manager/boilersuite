@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 BINDIR ?= $(CURDIR)/_bin
 
 MAKEFLAGS += --warn-undefined-variables --no-builtin-rules
@@ -62,13 +61,9 @@ $(BINDIR)/boilersuite-%: $(GO_FILES) $(TEMPLATE_FILES) | $(BINDIR)
 test:
 	go test . ./internal/...
 
-.PHONY: smoke-test
-smoke-test: $(BINDIR)/boilersuite
-	./hack/smoke_test.sh $< ./fixtures
-
 .PHONY: validate-local-boilerplate
 validate-local-boilerplate: $(BINDIR)/boilersuite
-	$< --skip fixtures .
+	$< .
 
 .PHONY: lint
 lint: | $(BINDIR)/golangci-lint
