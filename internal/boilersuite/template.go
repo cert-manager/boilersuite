@@ -85,28 +85,35 @@ func (t Template) validateContent(content string, path string, patch bool) error
 		return nil
 	}
 
-	// Find boilerplate year and location, make sure we have exactly one newline around the boilerplate
+	// Find existing boilerplate year and location
 	head, boilOrig, foot, year := t.analyzeFile(content)
-	have := head + boilOrig + foot
 	boilExpect := strings.ReplaceAll(t.text, YearMarker, year)
+
+	// Build the expected content, using the same newline type as the original, and ensuring exactly one empty line
+	// before/after the boilerplate
+	nl := "\n"
+	if strings.Contains(content, "\r\n") {
+		boilExpect = strings.ReplaceAll(boilExpect, "\n", "\r\n")
+		nl = "\r\n"
+	}
 	head = strings.TrimSpace(head)
 	if head != "" {
-		head += "\n\n"
+		head += nl + nl
 	}
 	if foot != "" {
-		foot = "\n" + strings.TrimLeftFunc(foot, unicode.IsSpace)
+		foot = nl + strings.TrimLeftFunc(foot, unicode.IsSpace)
 	}
-	want := head + boilExpect + foot
+	expect := head + boilExpect + foot
 
 	// Return error and patch if we don't have what we want
-	if have != want {
+	if content != expect {
 		reason := "incorrect boilerplate"
 		if boilOrig == "" {
 			reason = "missing boilerplate"
 		}
 		if patch {
-			edits := myers.ComputeEdits(span.URIFromPath(path), have, want)
-			return fmt.Errorf("%s\n%s", reason, gotextdiff.ToUnified(path, "expected", have, edits))
+			edits := myers.ComputeEdits(span.URIFromPath(path), content, expect)
+			return fmt.Errorf("%s\n%s", reason, gotextdiff.ToUnified(path, "expected", content, edits))
 		} else {
 			return fmt.Errorf("%s", reason)
 		}
@@ -115,14 +122,10 @@ func (t Template) validateContent(content string, path string, patch bool) error
 	return nil
 }
 
-// Split the input into header/boilerplate/footer parts, and finds the copyright year.
+// Split the input into header/boilerplate/footer parts, and find the copyright year.
 // The boilerplate part may be empty, and in this case the copyright year is generated.
 // The header might be a shebang, golang build constraints, etc (see LoadTemplates).
 func (t Template) analyzeFile(content string) (head string, boil string, foot string, year string) {
-	// Remove any windows-style line feeds in the raw input
-	content = strings.ReplaceAll(content, "\r", "")
-
-	// Find location/year of existing boilerplate, or generate one
 	start, stop, year := findExistingBoilerplate(content)
 	if start == -1 {
 		if t.skipHeaderFunc != nil {

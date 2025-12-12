@@ -139,6 +139,18 @@ func TestValidate(t *testing.T) {
 			msg:   "missing boilerplate",
 			patch: " // +build linux\n //go:build linux\n+\n+// header\n+// Copyright YEAR by Unittest\n+//\n+// footer\n+\n package foo\n",
 		},
+		{tmpl: tmplSh,
+			name:  "add template using crlf",
+			txt:   "#!/bin/bash\r\n\r\nfoo\r\n",
+			msg:   "missing boilerplate",
+			patch: " #!/bin/bash\r\n \r\n+#header\r\n+#Copyright YEAR by Unittest\r\n+#footer\r\n+\r\n foo\r\n",
+		},
+		{tmpl: tmplSh,
+			name:  "fix template to use crlf",
+			txt:   "#header\n#Copyright 2000 by Unittest\n#footer\n\nfoo\r\n",
+			msg:   "incorrect boilerplate",
+			patch: "-#header\n-#Copyright 2000 by Unittest\n-#footer\n-\n+#header\r\n+#Copyright 2000 by Unittest\r\n+#footer\r\n+\r\n foo\r\n",
+		},
 	}
 	thisyear := fmt.Sprintf("%d", time.Now().Year())
 	for _, c := range tests {
