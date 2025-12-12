@@ -44,12 +44,12 @@ func main() {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	verboseLogger := log.New(io.Discard, "", 0)
 
-	skipFlag := flag.String("skip", "", "Space-separated list of prefixes for paths which shouldn't be checked. Spaces in prefixes not supported.")
+	skipFlag := flag.String("skip", "", "Space-separated list of directories which shouldn't be validated. Spaces in prefixes not supported.")
 	authorFlag := flag.String("author", defaultAuthor, fmt.Sprintf("The expected author for files, which will be substituted for the %q marker in templates", boilersuite.AuthorMarker))
-	verboseFlag := flag.Bool("verbose", false, "If set, prints verbose output")
-	patchFlag := flag.Bool("patch", false, "If set, prints patch for failed files")
-	cpuProfile := flag.String("cpuprofile", "", "If set, writes CPU profiling information to the given filename")
-	printVersion := flag.Bool("version", false, "If set, prints the version and exits")
+	verboseFlag := flag.Bool("verbose", false, "Print verbose output")
+	patchFlag := flag.Bool("patch", false, "Print unified patch for failed files")
+	cpuProfile := flag.String("cpuprofile", "", "Writes CPU profiling information to the given filename")
+	printVersion := flag.Bool("version", false, "Prints the version and exits")
 
 	flag.Parse()
 

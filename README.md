@@ -20,32 +20,34 @@ exceptions made for several files, including `go.mod`, `go.sum`, git directories
 
 ## Validation Process
 
-Assume in this example we're validating a go file, but the same applies to any supported file.
+We start by loading all templates, checking their validity, replacing the `<<AUTHOR>>` marker, etc.
+Then, for each file found in the input directory:
 
-0. Load and parse all templates, replacing the `<<AUTHOR>>` marker with the configured author
-1. Find the go template in the list of bundled templates
-2. Check if the file has been generated or marked to be skipped. If so, skip.
-3. Normalise the target file, removing shebang lines, Go build constraints and replacing dates with the `<<YEAR>>` marker.
-4. Normalise spaces (e.g. Windows newlines, prefixed newlines) in the target file
-5. Ensure the target file is at least as long as the template. If not, it can't possibly match and we error.
-6. Ensure the target file starts with the template. If not, we error.
+1. Match the file name to one of the loaded templates (skip file if no match)
+2. Read file content
+3. Skip file if its content marks it as generated or `skip_license_check`
+4. Find location and year of existing boilerplate
+    * A comment block with a "copyright" string
+    * Skiping the shebang or go build constraint if applicable
+5. Build the expected content
+    * Set year in the template
+    * Set lf/crlf newline type
+    * Set `expected = original_header + empty_line + boiler_plate + empty_line + original_body`
+6. If original doesn't match expected, return an error string and if requested a unified diff
 
 ## Running
 
 ```console
-boilersuite [--skip "paths to skip"] [--author "example"] [--verbose] <path-to-validate>
+boilersuite [--skip "paths to skip"] [--author "example"] [--verbose] [--patch] <path-to-validate>
 ```
 
-The `--author` parameter defaults to `cert-manager`.
-
-The `--skip` parameter gives a list of space-separated paths which should not be validated.
-
-The `--verbose` parameter prints output for every validated file or skipped directory.
-
-The `<path-to-validate>` can either be a directory (which will be searched recursively) or a single file.
-
-NB: The boilersuite repo (this repo!) includes a set of intentionally incorrect test fixtures under `fixture/`,
-and so that directory needs to be skipped when validating this repo specifically. See `make validate-local-boilerplate`.
+|arg               |meaning  |default  |
+|------------------|---------|---------|
+|`path-to-validate`|Directory or single file to validate|Mandatory|
+|`--author`        |Substitute for `<<AUTHOR>>` in the templates|`cert-manager`|
+|`--skip`          |Space-separated list of directories that should not be validated (adds to default)|`.git _bin bin node_modules vendor third_party staging`|
+|`--verbose`       |Print validated/skipped files and other details|false|
+|`--patch`         |Print a unified diff suitable for piping into `patch -p0` to fix bad boilerplate|false|
 
 ## Building
 
@@ -58,5 +60,6 @@ After this, boilersuite will be available at `_bin/boilersuite`.
 ## Testing
 
 ```console
-make test-all
+make test
+make validate-local-boilerplate
 ```
