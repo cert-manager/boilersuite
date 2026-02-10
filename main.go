@@ -30,6 +30,7 @@ import (
 
 	"github.com/cert-manager/boilersuite/internal/boilersuite"
 	"github.com/cert-manager/boilersuite/internal/version"
+	"github.com/codeglyph/go-dotignore/v2"
 )
 
 const (
@@ -177,9 +178,27 @@ func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPre
 		skipMap[skip] = struct{}{}
 	}
 
-	err := filepath.WalkDir(targetBase, func(path string, d fs.DirEntry, err error) error {
+	matcher, err := dotignore.NewRepositoryMatcher(targetBase)
+	if err != nil {
+		return nil, err
+	}
+
+	err = filepath.WalkDir(targetBase, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+
+		ignored, matchErr := matcher.Matches(path)
+		if matchErr != nil {
+			return fmt.Errorf("failed to match %q: %w", path, matchErr)
+		}
+		if ignored {
+			if d.IsDir() {
+				verboseLogger.Printf("skipping directory %q", path)
+				return fs.SkipDir
+			}
+			verboseLogger.Printf("skipping file %q", path)
+			return nil
 		}
 
 		if d.IsDir() {
