@@ -180,7 +180,7 @@ func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPre
 
 	matcher, err := dotignore.NewRepositoryMatcher(targetBase)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create repository matcher for %q: %w", targetBase, err)
 	}
 
 	err = filepath.WalkDir(targetBase, func(path string, d fs.DirEntry, err error) error {
