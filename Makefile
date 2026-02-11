@@ -24,7 +24,7 @@ SHELL := /usr/bin/env bash
 GO_FILES := $(shell find . -name "*.go")
 TEMPLATE_FILES := $(shell find boilerplate-templates -name "*.boilertmpl")
 
-GOLANGCI_LINT_VERSION := v2.4.0
+GOLANGCI_LINT_VERSION := v2.8.0
 
 GOFLAGS := -trimpath
 
@@ -73,6 +73,9 @@ validate-local-boilerplate: $(BINDIR)/boilersuite
 .PHONY: lint
 lint: | $(BINDIR)/golangci-lint
 	$(BINDIR)/golangci-lint run
+
+lint-fix: | $(BINDIR)/golangci-lint
+	$(BINDIR)/golangci-lint run --fix
 
 .PHONY: test-all
 test-all: test smoke-test validate-local-boilerplate lint
