@@ -138,6 +138,17 @@ func main() {
 func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPrefixes []string, verboseLogger *log.Logger) ([]string, error) {
 	var targets []string
 
+	fileInfo, err := os.Stat(targetBase)
+	if err != nil {
+		return nil, err
+	}
+	if fileInfo.Mode().IsRegular() {
+		if _, ok := templates.TemplateFor(targetBase); ok {
+			targets = append(targets, targetBase)
+		}
+		return targets, nil
+	}
+
 	skipMap := make(map[string]struct{})
 
 	for _, skip := range append(skippedPrefixes, alwaysSkippedDirs...) {
