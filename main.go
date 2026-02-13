@@ -37,10 +37,6 @@ const (
 	defaultAuthor = "cert-manager"
 )
 
-var (
-	alwaysSkippedDirs = []string{".git", "_bin", "bin", "node_modules", "vendor", "third_party", "staging"}
-)
-
 //go:embed boilerplate-templates/*.boilertmpl
 var boilerplateTemplateDir embed.FS
 
@@ -49,7 +45,7 @@ func main() {
 	verboseLogger := log.New(io.Discard, "", 0)
 
 	skipFlag := flag.String("skip", "", "Space-separated list of prefixes for paths which shouldn't be checked. Spaces in prefixes not supported.")
-	authorFlag := flag.String("author", defaultAuthor, fmt.Sprintf("The expected author for files, which will be substituted for the %q marker in templates", boilersuite.AuthorMarkerRegex))
+	authorFlag := flag.String("author", defaultAuthor, fmt.Sprintf("The expected author for files, which will be substituted for the %q marker in templates", boilersuite.AuthorMarker))
 	verboseFlag := flag.Bool("verbose", false, "If set, prints verbose output")
 	cpuProfile := flag.String("cpuprofile", "", "If set, writes CPU profiling information to the given filename")
 	printVersion := flag.Bool("version", false, "If set, prints the version and exits")
@@ -66,14 +62,13 @@ func main() {
 		logger.Fatalf("usage: %s [--version] [--skip \"paths to skip\"] [--author \"example\"] [--verbose] <path-to-dir>", os.Args[0])
 	}
 
-	var skippedDirs []string
-
+	skippedDirs := []string{".git", "_bin", "bin", "node_modules", "vendor", "third_party", "staging"}
 	if skipFlag != nil && len(*skipFlag) > 0 {
-		skippedDirs = strings.Fields(*skipFlag)
+		skippedDirs = append(skippedDirs, strings.Fields(*skipFlag)...)
 	}
 
 	if *verboseFlag {
-		verboseLogger = log.New(os.Stdout, "[VERBOSE] ", log.LstdFlags)
+		verboseLogger = log.New(os.Stdout, "[VERBOSE] ", log.LstdFlags|log.Lmsgprefix)
 	}
 
 	if *cpuProfile != "" {
@@ -97,29 +92,9 @@ func main() {
 
 	targetBase := flag.Arg(0)
 
-	dir, err := isDir(targetBase)
+	targets, err := getTargets(targetBase, templates, skippedDirs, verboseLogger)
 	if err != nil {
-		// couldn't check if the base was a dir or not
-		logger.Fatalf("target invalid: %s", err)
-	}
-
-	var targets []target
-
-	if dir {
-		targets, err = getTargets(targetBase, templates, skippedDirs, verboseLogger)
-		if err != nil {
-			logger.Fatalf("failed to list targets in dir %q: %s", targetBase, err.Error())
-		}
-	} else {
-		contents, err := os.ReadFile(targetBase)
-		if err != nil {
-			logger.Fatalf("failed to read %q: %s", targetBase, err.Error())
-		}
-
-		targets = []target{target{
-			path:     targetBase,
-			contents: string(contents),
-		}}
+		logger.Fatalf("failed to list targets in dir %q: %s", targetBase, err.Error())
 	}
 
 	if len(targets) == 0 {
@@ -128,19 +103,19 @@ func main() {
 
 	validationErrors := make([]error, 0)
 
-	for _, t := range targets {
-		tmpl, ok := templates.TemplateFor(t.path)
+	for _, path := range targets {
+		tmpl, ok := templates.TemplateFor(path)
 		if !ok {
 			panic("failed to get a template for a target which was already processed")
 		}
 
-		err := tmpl.Validate(t.contents)
+		err := tmpl.Validate(path)
 		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("invalid boilerplate in %q: %w", t.path, err))
+			validationErrors = append(validationErrors, fmt.Errorf("invalid boilerplate in %q: %w", path, err))
 			continue
 		}
 
-		verboseLogger.Printf("validated %q successfully", t.path)
+		verboseLogger.Printf("validated %q successfully", path)
 	}
 
 	if len(validationErrors) == 0 {
@@ -155,26 +130,22 @@ func main() {
 	logger.Fatalln("at least one file had errors")
 }
 
-type target struct {
-	path     string
-	contents string
-}
+func getTargets(targetBase string, templates boilersuite.TemplateMap, skipList []string, verboseLogger *log.Logger) ([]string, error) {
+	var targets []string
 
-func isDir(path string) (bool, error) {
-	stat, err := os.Stat(path)
+	fileInfo, err := os.Stat(targetBase)
 	if err != nil {
-		return false, err
+		return nil, err
+	}
+	if fileInfo.Mode().IsRegular() {
+		if _, ok := templates.TemplateFor(targetBase); ok {
+			targets = append(targets, targetBase)
+		}
+		return targets, nil
 	}
 
-	return stat.IsDir(), nil
-}
-
-func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPrefixes []string, verboseLogger *log.Logger) ([]target, error) {
-	var targets []target
-
 	skipMap := make(map[string]struct{})
-
-	for _, skip := range append(skippedPrefixes, alwaysSkippedDirs...) {
+	for _, skip := range skipList {
 		skipMap[skip] = struct{}{}
 	}
 
@@ -221,15 +192,7 @@ func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPre
 			return nil
 		}
 
-		contents, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read %q: %w", path, err)
-		}
-
-		targets = append(targets, target{
-			path:     path,
-			contents: string(contents),
-		})
+		targets = append(targets, path)
 
 		return nil
 	})
