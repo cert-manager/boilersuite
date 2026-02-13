@@ -21,17 +21,20 @@ import (
 )
 
 var (
-	// YearMarkerRegex matches the marker which should appear in boilerplate sample files but not in actual files
-	YearMarkerRegex = regexp.MustCompile(`<<YEAR>>`)
+	// CopyrightMarker should appear in boilerplate sample files but not in actual files
+	CopyrightMarker = "Copyright <<YEAR>>"
 
-	// AuthorMarkerRegex matches the marker which should appear in boilerplate sample files but not in actual files
-	AuthorMarkerRegex = regexp.MustCompile(`<<AUTHOR>>`)
+	// YearMarker should appear in boilerplate sample files but not in actual files
+	YearMarker = "<<YEAR>>"
 
-	// DateRegex matches the actual date found inside a file
-	DateRegex = regexp.MustCompile(`Copyright 20\d\d`)
+	// AuthorMarker should appear in boilerplate sample files but not in actual files
+	AuthorMarker = "<<AUTHOR>>"
+
+	// CopyrightRegex matches a copyright string optionally followed by a year
+	CopyrightRegex = regexp.MustCompile(`(?i)Copyright ([12]\d\d\d)?`)
 
 	// BuildConstraintsRegex matches golang build constraints
-	BuildConstraintsRegex = regexp.MustCompile(`(?m)^(\/\/(go:build| \+build).*\n)+$`)
+	BuildConstraintsRegex = regexp.MustCompile(`(?m)^(\/\/(go:build| \+build).*\n)+`)
 
 	// ShebangRegex matches shebangs in scripts; most shebangs should be on the first line
 	// but we use a multiline here to be safe

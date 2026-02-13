@@ -23,14 +23,14 @@ import (
 	"strings"
 )
 
-type TemplateMap map[string]BoilerplateTemplate
+type TemplateMap map[string]Template
 
 // LoadTemplates attempts to read all of the templates under the given embedded filesystem
 // and return a TemplateMap which can be used for fetching templates later.
 func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, error) {
 	allEntries, err := templateDir.ReadDir("boilerplate-templates")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read templates: %s", err.Error())
+		return nil, fmt.Errorf("failed to read template dir: %s", err.Error())
 	}
 
 	if len(allEntries) == 0 {
@@ -42,30 +42,16 @@ func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, er
 	for _, entry := range allEntries {
 		name := entry.Name()
 		path := filepath.Join("boilerplate-templates", name)
-
 		trimmedName := strings.TrimSuffix(name, ".boilertmpl")
-
 		target := strings.TrimPrefix(filepath.Ext(trimmedName), ".")
 
-		contents, err := templateDir.ReadFile(path)
+		content, err := templateDir.ReadFile(path)
 		if err != nil {
 			// if files were embedded properly, shouldn't fail to read
 			return nil, fmt.Errorf("failed to read %q: %s", path, err.Error())
 		}
 
-		var normalizationFunc func(string) string
-
-		switch target {
-		case "go":
-			normalizationFunc = normalizeGoFile
-		case "sh", "bash", "py":
-			normalizationFunc = normalizeShebang
-		}
-
-		out[target], err = NewBoilerplateTemplate(string(contents), BoilerplateTemplateConfiguration{
-			ExpectedAuthor:    expectedAuthor,
-			NormalizationFunc: normalizationFunc,
-		})
+		out[target], err = NewTemplate(string(content), target, expectedAuthor)
 		if err != nil {
 			// all templates should be valid before embedding
 			return nil, fmt.Errorf("invalid template %q: %s", path, err.Error())
@@ -76,7 +62,7 @@ func LoadTemplates(templateDir embed.FS, expectedAuthor string) (TemplateMap, er
 }
 
 // TemplateMap returns a template which matches the given name, if one exists in the map.
-func (tm TemplateMap) TemplateFor(path string) (BoilerplateTemplate, bool) {
+func (tm TemplateMap) TemplateFor(path string) (Template, bool) {
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 
 	tmpl, ok := tm[ext]
@@ -96,5 +82,5 @@ func (tm TemplateMap) TemplateFor(path string) (BoilerplateTemplate, bool) {
 		return tmpl, true
 	}
 
-	return BoilerplateTemplate{}, false
+	return Template{}, false
 }

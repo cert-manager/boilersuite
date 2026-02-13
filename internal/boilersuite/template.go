@@ -18,114 +18,215 @@ package boilersuite
 
 import (
 	"fmt"
+	"os"
 	"strings"
+	"time"
+	"unicode"
+
+	"github.com/hexops/gotextdiff"
+	"github.com/hexops/gotextdiff/myers"
+	"github.com/hexops/gotextdiff/span"
 )
 
-// BoilerplateTemplate takes a raw template as input and pre-processes it so it's ready for use
-// during validation.
-type BoilerplateTemplate struct {
-	raw      string
-	replaced string
-
-	lineCount int
-
-	normalizationFunc func(string) string
+// Pre-processed template ready for use during validation.
+type Template struct {
+	// Text of the template, sanity-checked and with the <<AUTHOR>> marker replaced
+	text string
+	// Optional parsing step, for example, to skip go build constraints
+	skipHeaderFunc func(string) int
 }
 
-// BoilerplateTemplateConfiguration holds configuration values which can be used for pre-processing a template
-type BoilerplateTemplateConfiguration struct {
-	// ExpectedAuthor contains the name of the author expected to be found in
-	// the template. Related to the <<AUTHOR>> marker.
-	ExpectedAuthor string
-
-	// NormalizationFunc is an optional extra normalization step to take for
-	// files matched by this template. For example, in go files we might need
-	// to remove golang build constraints
-	NormalizationFunc func(string) string
-}
-
-// NewBoilerplateTemplate creates a new boilerplate template using the given raw template and configuration
-func NewBoilerplateTemplate(raw string, config BoilerplateTemplateConfiguration) (BoilerplateTemplate, error) {
-	if !YearMarkerRegex.MatchString(raw) {
-		return BoilerplateTemplate{}, fmt.Errorf("invalid template: couldn't find year replacement marker %s", YearMarkerRegex.String())
+// Create a new boilerplate template using the given content and configuration
+func NewTemplate(content string, ext string, expectedAuthor string) (Template, error) {
+	// Sanity-check
+	if !strings.Contains(content, CopyrightMarker) {
+		return Template{}, fmt.Errorf("couldn't find replacement marker %q", CopyrightMarker)
 	}
 
-	if !AuthorMarkerRegex.MatchString(raw) {
-		return BoilerplateTemplate{}, fmt.Errorf("invalid template: couldn't find author replacement marker %s", AuthorMarkerRegex.String())
+	if !strings.Contains(content, AuthorMarker) {
+		return Template{}, fmt.Errorf("couldn't find replacement marker %q", AuthorMarker)
 	}
 
-	replaced := AuthorMarkerRegex.ReplaceAllString(raw, config.ExpectedAuthor)
+	if strings.Contains(content, "\r") {
+		return Template{}, fmt.Errorf("has Windows style line endings. Unix style are required")
+	}
 
-	lineCount := strings.Count(replaced, "\n") + 1
+	// Edit content
+	text := strings.ReplaceAll(content, AuthorMarker, expectedAuthor)
+	text = strings.TrimSpace(text) + "\n"
 
-	return BoilerplateTemplate{
-		raw:               raw,
-		replaced:          replaced,
-		lineCount:         lineCount,
-		normalizationFunc: config.NormalizationFunc,
+	// Find skipHeaderFunc
+	var skipHeaderFunc func(string) int
+	switch ext {
+	case "go":
+		skipHeaderFunc = skipHeaderGoFile
+	case "sh", "bash", "py":
+		skipHeaderFunc = skipHeaderShebang
+	}
+
+	return Template{
+		text:           text,
+		skipHeaderFunc: skipHeaderFunc,
 	}, nil
 }
 
-// Validate checks the given raw input file against the template
-func (t BoilerplateTemplate) Validate(raw string) error {
-	if SkipFileRegex.MatchString(raw) || GeneratedRegex.MatchString(raw) {
+// Validate checks the given file path against the template
+func (t Template) Validate(path string, patch bool) error {
+	// Read file and check
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read: %w", err)
+	}
+	return t.validateContent(string(content), path, patch)
+}
+
+func (t Template) validateContent(content string, path string, patch bool) error {
+	if SkipFileRegex.MatchString(content) || GeneratedRegex.MatchString(content) {
 		return nil
 	}
 
-	normalizedContents, err := t.normalizeAndTrimFile(raw)
-	if err != nil {
-		return err
-	}
+	// Find existing boilerplate year and location
+	head, boilOrig, foot, year := t.analyzeFile(content)
+	boilExpect := strings.ReplaceAll(t.text, YearMarker, year)
 
-	if !strings.HasPrefix(normalizedContents, t.replaced) {
-		return fmt.Errorf("does not start with expected template type")
+	// Build the expected content, using the same newline type as the original, and ensuring exactly one empty line
+	// before/after the boilerplate
+	nl := "\n"
+	if strings.Contains(content, "\r\n") {
+		boilExpect = strings.ReplaceAll(boilExpect, "\n", "\r\n")
+		nl = "\r\n"
+	}
+	head = strings.TrimSpace(head)
+	if head != "" {
+		head += nl + nl
+	}
+	if foot != "" {
+		foot = nl + strings.TrimLeftFunc(foot, unicode.IsSpace)
+	}
+	expect := head + boilExpect + foot
+
+	// Return error and patch if we don't have what we want
+	if content != expect {
+		reason := "incorrect boilerplate"
+		if boilOrig == "" {
+			reason = "missing boilerplate"
+		}
+		if patch {
+			edits := myers.ComputeEdits(span.URIFromPath(path), content, expect)
+			return fmt.Errorf("%s\n%s", reason, gotextdiff.ToUnified(path, "expected", content, edits))
+		} else {
+			return fmt.Errorf("%s", reason)
+		}
 	}
 
 	return nil
 }
 
-// normalizeAndTrimFile takes a given input file and strips any shebang lines,
-// Golang build constraints and any leading or trailing whitespace
-func (t BoilerplateTemplate) normalizeAndTrimFile(raw string) (string, error) {
-	raw = strings.ReplaceAll(raw, "\r", "")
-
-	raw = fileBeginning(raw, t.lineCount)
-
-	if t.normalizationFunc != nil {
-		raw = t.normalizationFunc(raw)
+// Split the input into header/boilerplate/footer parts, and find the copyright year.
+// The boilerplate part may be empty, and in this case the copyright year is generated.
+// The header might be a shebang, golang build constraints, etc (see LoadTemplates).
+func (t Template) analyzeFile(content string) (head string, boil string, foot string, year string) {
+	start, stop, year := findExistingBoilerplate(content)
+	if start == -1 {
+		if t.skipHeaderFunc != nil {
+			start = t.skipHeaderFunc(content)
+			stop = start
+		} else {
+			start = 0
+			stop = 0
+		}
+	} else if t.skipHeaderFunc != nil {
+		start += t.skipHeaderFunc(content[start:stop])
+	}
+	if year == "" {
+		year = fmt.Sprint(time.Now().Year())
 	}
 
-	// replace anything which looks like a date with the year marker
-	raw = DateRegex.ReplaceAllString(raw, "Copyright "+YearMarkerRegex.String())
+	return content[:start], content[start:stop], content[stop:], year
+}
 
-	// Remove any windows-style line feeds in the raw input
+// Look for a boilerplate block (C/C++/Shell-style comment, contains boilerplate keywords),
+// and return its start/end byte index.
+func findExistingBoilerplate(content string) (start int, stop int, year string) {
+	inblock := ""
+	isBoiler := false
+	pos := 0
+	start = -1
+	year = ""
+	for line := range strings.Lines(content) {
+		l := strings.TrimSpace(line)
+		// Check if current line is from a boilerplate, and remember the year
+		yearmatch := CopyrightRegex.FindStringSubmatch(l)
+		if len(yearmatch) == 2 {
+			isBoiler = true
+			year = yearmatch[1]
+		}
 
-	raw = strings.TrimLeft(raw, "\n")
-
-	split := strings.Split(raw, "\n")
-
-	if len(split) < t.lineCount {
-		return raw, fmt.Errorf("file is shorter than the boilerplate header; cannot have correct boilerplate")
+		switch inblock {
+		// Check for the begining of a comment block
+		case "":
+			if strings.HasPrefix(l, "/*") {
+				inblock = "/*"
+				start = pos
+				if strings.HasSuffix(l, "*/") {
+					if isBoiler {
+						return start, pos + len(line), year
+					}
+					inblock = ""
+					start = -1
+					isBoiler = false
+				}
+			} else if strings.HasPrefix(l, "//") {
+				inblock = "//"
+				start = pos
+			} else if strings.HasPrefix(l, "#") {
+				inblock = "#"
+				start = pos
+			}
+		// Check for the end of a comment block (previous line)
+		case "//", "#":
+			if !strings.HasPrefix(l, inblock) {
+				inblock = ""
+				if start >= 0 && isBoiler {
+					return start, pos, year
+				}
+				start = -1
+				isBoiler = false
+			}
+		// Check for the end of a comment block (current line)
+		case "/*":
+			if strings.HasSuffix(l, "*/") {
+				inblock = ""
+				if start >= 0 && isBoiler {
+					return start, pos + len(line), year
+				}
+				start = -1
+				isBoiler = false
+			}
+		}
+		pos += len(line)
 	}
-
-	return strings.Join(split[:t.lineCount], "\n"), nil
-}
-
-func fileBeginning(raw string, templateLineCount int) string {
-	s := strings.Split(raw, "\n")
-	if len(s) >= templateLineCount*2 {
-		s = s[:templateLineCount*2]
+	// Handle "boilerplate reaches end of file" case
+	if inblock != "" && start >= 0 && isBoiler {
+		return start, pos, year
 	}
-
-	return strings.Join(s, "\n")
+	return -1, -1, ""
 }
 
-func normalizeGoFile(raw string) string {
-	// Remove any golang build constraints
-	return BuildConstraintsRegex.ReplaceAllString(raw, "")
+// Find location past the go build constraints
+func skipHeaderGoFile(raw string) int {
+	loc := BuildConstraintsRegex.FindStringIndex(raw)
+	if loc != nil {
+		return loc[1]
+	}
+	return 0
 }
 
-func normalizeShebang(raw string) string {
-	// Remove the shebang line, if there is one
-	return ShebangRegex.ReplaceAllString(raw, "")
+// Find location past the shebang line
+func skipHeaderShebang(raw string) int {
+	loc := ShebangRegex.FindStringIndex(raw)
+	if loc != nil {
+		return loc[1]
+	}
+	return 0
 }
