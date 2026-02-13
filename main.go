@@ -37,10 +37,6 @@ const (
 	defaultAuthor = "cert-manager"
 )
 
-var (
-	alwaysSkippedDirs = []string{".git", "_bin", "bin", "node_modules", "vendor", "third_party", "staging"}
-)
-
 //go:embed boilerplate-templates/*.boilertmpl
 var boilerplateTemplateDir embed.FS
 
@@ -66,14 +62,13 @@ func main() {
 		logger.Fatalf("usage: %s [--version] [--skip \"paths to skip\"] [--author \"example\"] [--verbose] <path-to-dir>", os.Args[0])
 	}
 
-	var skippedDirs []string
-
+	skippedDirs := []string{".git", "_bin", "bin", "node_modules", "vendor", "third_party", "staging"}
 	if skipFlag != nil && len(*skipFlag) > 0 {
-		skippedDirs = strings.Fields(*skipFlag)
+		skippedDirs = append(skippedDirs, strings.Fields(*skipFlag)...)
 	}
 
 	if *verboseFlag {
-		verboseLogger = log.New(os.Stdout, "[VERBOSE] ", log.LstdFlags)
+		verboseLogger = log.New(os.Stdout, "[VERBOSE] ", log.LstdFlags|log.Lmsgprefix)
 	}
 
 	if *cpuProfile != "" {
@@ -135,7 +130,7 @@ func main() {
 	logger.Fatalln("at least one file had errors")
 }
 
-func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPrefixes []string, verboseLogger *log.Logger) ([]string, error) {
+func getTargets(targetBase string, templates boilersuite.TemplateMap, skipList []string, verboseLogger *log.Logger) ([]string, error) {
 	var targets []string
 
 	fileInfo, err := os.Stat(targetBase)
@@ -150,8 +145,7 @@ func getTargets(targetBase string, templates boilersuite.TemplateMap, skippedPre
 	}
 
 	skipMap := make(map[string]struct{})
-
-	for _, skip := range append(skippedPrefixes, alwaysSkippedDirs...) {
+	for _, skip := range skipList {
 		skipMap[skip] = struct{}{}
 	}
 
