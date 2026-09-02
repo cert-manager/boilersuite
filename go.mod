@@ -2,4 +2,4 @@ module github.com/cert-manager/boilersuite
 
 go 1.25
 
-require github.com/codeglyph/go-dotignore/v2 v2.2.0
+require github.com/codeglyph/go-dotignore/v2 v2.3.0
