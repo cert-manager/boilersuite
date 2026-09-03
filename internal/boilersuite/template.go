@@ -18,6 +18,7 @@ package boilersuite
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -46,15 +47,15 @@ type BoilerplateTemplateConfiguration struct {
 
 // NewBoilerplateTemplate creates a new boilerplate template using the given raw template and configuration
 func NewBoilerplateTemplate(raw string, config BoilerplateTemplateConfiguration) (BoilerplateTemplate, error) {
-	if !YearMarkerRegex.MatchString(raw) {
-		return BoilerplateTemplate{}, fmt.Errorf("invalid template: couldn't find year replacement marker %s", YearMarkerRegex.String())
+	if !strings.Contains(raw, YearMarker) {
+		return BoilerplateTemplate{}, fmt.Errorf("couldn't find replacement marker %q", YearMarker)
 	}
 
-	if !AuthorMarkerRegex.MatchString(raw) {
-		return BoilerplateTemplate{}, fmt.Errorf("invalid template: couldn't find author replacement marker %s", AuthorMarkerRegex.String())
+	if !strings.Contains(raw, AuthorMarker) {
+		return BoilerplateTemplate{}, fmt.Errorf("couldn't find replacement marker %q", AuthorMarker)
 	}
 
-	replaced := AuthorMarkerRegex.ReplaceAllString(raw, config.ExpectedAuthor)
+	replaced := strings.ReplaceAll(raw, AuthorMarker, config.ExpectedAuthor)
 
 	lineCount := strings.Count(replaced, "\n") + 1
 
@@ -66,13 +67,18 @@ func NewBoilerplateTemplate(raw string, config BoilerplateTemplateConfiguration)
 	}, nil
 }
 
-// Validate checks the given raw input file against the template
-func (t BoilerplateTemplate) Validate(raw string) error {
-	if SkipFileRegex.MatchString(raw) || GeneratedRegex.MatchString(raw) {
+// Validate checks the given file path against the template
+func (t BoilerplateTemplate) Validate(path string) error {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read: %w", err)
+	}
+
+	if SkipFileRegex.Match(contents) || GeneratedRegex.Match(contents) {
 		return nil
 	}
 
-	normalizedContents, err := t.normalizeAndTrimFile(raw)
+	normalizedContents, err := t.normalizeAndTrimFile(string(contents))
 	if err != nil {
 		return err
 	}
@@ -96,7 +102,7 @@ func (t BoilerplateTemplate) normalizeAndTrimFile(raw string) (string, error) {
 	}
 
 	// replace anything which looks like a date with the year marker
-	raw = DateRegex.ReplaceAllString(raw, "Copyright "+YearMarkerRegex.String())
+	raw = DateRegex.ReplaceAllString(raw, CopyrightMarker)
 
 	// Remove any windows-style line feeds in the raw input
 

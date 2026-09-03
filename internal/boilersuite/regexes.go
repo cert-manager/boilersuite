@@ -21,11 +21,14 @@ import (
 )
 
 var (
-	// YearMarkerRegex matches the marker which should appear in boilerplate sample files but not in actual files
-	YearMarkerRegex = regexp.MustCompile(`<<YEAR>>`)
+	// CopyrightMarker should appear in boilerplate sample files but not in actual files
+	CopyrightMarker = "Copyright <<YEAR>>"
 
-	// AuthorMarkerRegex matches the marker which should appear in boilerplate sample files but not in actual files
-	AuthorMarkerRegex = regexp.MustCompile(`<<AUTHOR>>`)
+	// YearMarker should appear in boilerplate sample files but not in actual files
+	YearMarker = "<<YEAR>>"
+
+	// AuthorMarker should appear in boilerplate sample files but not in actual files
+	AuthorMarker = "<<AUTHOR>>"
 
 	// DateRegex matches the actual date found inside a file
 	DateRegex = regexp.MustCompile(`Copyright 20\d\d`)

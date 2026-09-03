@@ -51,13 +51,13 @@ func Test_Templates(t *testing.T) {
 			continue
 		}
 
-		if !boilersuite.YearMarkerRegex.Match(contents) {
-			t.Errorf("couldn't find marker %s in %q", boilersuite.YearMarkerRegex.String(), path)
+		if !strings.Contains(string(contents), boilersuite.YearMarker) {
+			t.Errorf("couldn't find marker %s in %q", boilersuite.YearMarker, path)
 			continue
 		}
 
-		if !boilersuite.AuthorMarkerRegex.Match(contents) {
-			t.Errorf("couldn't find marker %s in %q", boilersuite.AuthorMarkerRegex.String(), path)
+		if !strings.Contains(string(contents), boilersuite.AuthorMarker) {
+			t.Errorf("couldn't find marker %s in %q", boilersuite.AuthorMarker, path)
 			continue
 		}
 
